@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img">
+  <rect width="800" height="640" fill="#1a120e"/>
+  
+    <rect width="800" height="640" fill="#1a120e"/>
+    <rect x="70" y="80" width="70" height="480" fill="#e6d2b5" opacity="0.25"/>
+    <rect x="660" y="80" width="70" height="480" fill="#e6d2b5" opacity="0.25"/>
+    <rect x="82" y="110" width="46" height="36" fill="#1a120e"/><rect x="82" y="184" width="46" height="36" fill="#1a120e"/><rect x="82" y="258" width="46" height="36" fill="#1a120e"/><rect x="82" y="332" width="46" height="36" fill="#1a120e"/><rect x="82" y="406" width="46" height="36" fill="#1a120e"/><rect x="82" y="480" width="46" height="36" fill="#1a120e"/>
+    <rect x="672" y="110" width="46" height="36" fill="#1a120e"/><rect x="672" y="184" width="46" height="36" fill="#1a120e"/><rect x="672" y="258" width="46" height="36" fill="#1a120e"/><rect x="672" y="332" width="46" height="36" fill="#1a120e"/><rect x="672" y="406" width="46" height="36" fill="#1a120e"/><rect x="672" y="480" width="46" height="36" fill="#1a120e"/>
+    <circle cx="400" cy="320" r="90" fill="none" stroke="#c45c26" stroke-width="16"/>
+    <circle cx="400" cy="320" r="30" fill="#c45c26"/>
+  
+</svg>

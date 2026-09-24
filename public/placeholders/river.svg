@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img">
+  <rect width="800" height="640" fill="#1d3a4c"/>
+  
+    <rect width="800" height="280" fill="#e7e1d4"/>
+    <path d="M0 240 C 200 180 300 300 500 230 C 640 180 700 220 800 200 V 640 H 0 Z" fill="#1d3a4c"/>
+    <path d="M0 360 C 180 320 260 420 460 370 C 620 330 700 390 800 350 V 640 H 0 Z" fill="#7ea0b0" opacity="0.85"/>
+  
+</svg>

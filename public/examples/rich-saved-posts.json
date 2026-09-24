@@ -1,0 +1,19 @@
+{
+  "posts": [
+    {
+      "url": "https://www.instagram.com/p/RichCoastWalk/",
+      "savedAt": "2024-08-12T18:30:00.000Z",
+      "caption": "A windy coast walk after the ferry, lemon trees on the inland side of the road.",
+      "account": "northshore",
+      "mediaType": "carousel",
+      "tags": ["weekend"]
+    },
+    {
+      "url": "https://www.instagram.com/reel/RichNightPasta/",
+      "savedAt": "2024-09-02T21:05:00.000Z",
+      "caption": "A late pasta recipe: butter, pepper, and the last of the cheese.",
+      "account": "weekdayoven",
+      "mediaType": "reel"
+    }
+  ]
+}
