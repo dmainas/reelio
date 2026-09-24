@@ -30,43 +30,22 @@ import { requestRemoteOrganize } from "@/lib/remote-organize";
 import { clearLibraryStorage, loadLibrary, saveLibrary } from "@/lib/storage";
 import { defaultSettings, type ImportedDraft, type LibraryFilter, type SavedPost, type Settings } from "@/lib/types";
 import { BookmarkIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, UploadIcon, XIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type LoadState = { status: "loading" } | { status: "error" } | { status: "ready" };
 
 export function LibraryApp() {
-  const [posts, setPosts] = useState<SavedPost[]>([]);
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  "use no memo";
+  const [initialShelf] = useState(readInitialShelf);
+  const [posts, setPosts] = useState<SavedPost[]>(initialShelf.posts);
+  const [settings, setSettings] = useState<Settings>(initialShelf.settings);
+  const [loadState, setLoadState] = useState<LoadState>({ status: initialShelf.status });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LibraryFilter>({ kind: "all" });
   const [importOpen, setImportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-
-  useEffect(() => {
-    // Read localStorage after paint so the server and the first client render
-    // both show the loading shelf, then the saved library replaces it.
-    const timer = window.setTimeout(() => {
-      try {
-        const stored = loadLibrary();
-        if (!stored) {
-          const demo = createDemoLibrary();
-          setPosts(demo);
-          setSettings(defaultSettings);
-          saveLibrary({ posts: demo, settings: defaultSettings });
-        } else {
-          setPosts(stored.posts);
-          setSettings(stored.settings);
-        }
-        setLoadState({ status: "ready" });
-      } catch {
-        setLoadState({ status: "error" });
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   function commit(nextPosts: SavedPost[], nextSettings: Settings = settings) {
     setPosts(nextPosts);
@@ -310,6 +289,21 @@ export function LibraryApp() {
       />
     </div>
   );
+}
+
+function readInitialShelf(): { posts: SavedPost[]; settings: Settings; status: "ready" | "error" } {
+  try {
+    const stored = loadLibrary();
+    if (!stored) {
+      const posts = createDemoLibrary();
+      const settings = { ...defaultSettings };
+      saveLibrary({ posts, settings });
+      return { posts, settings, status: "ready" };
+    }
+    return { posts: stored.posts, settings: stored.settings, status: "ready" };
+  } catch {
+    return { posts: [], settings: { ...defaultSettings }, status: "error" };
+  }
 }
 
 function summaryText(total: number, shown: number, filter: LibraryFilter, query: string): string {

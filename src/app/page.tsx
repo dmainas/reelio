@@ -1,5 +1,5 @@
-import { LibraryApp } from "@/components/library-app";
+import { LibraryShell } from "@/components/library-shell";
 
 export default function Home() {
-  return <LibraryApp />;
+  return <LibraryShell />;
 }
