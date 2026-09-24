@@ -17,7 +17,7 @@ import { useState } from "react";
 type ImportDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (drafts: ImportedDraft[], meta: { skipped: number; truncated: boolean }) => void;
+  onImport: (drafts: ImportedDraft[], meta: { skipped: number }) => void;
 };
 
 export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps) {
@@ -59,7 +59,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
         setError(result.error);
         return;
       }
-      onImport(result.posts, { skipped: result.skipped, truncated: result.truncated });
+      onImport(result.posts, { skipped: result.skipped });
       resetDraft();
       onOpenChange(false);
     } catch {

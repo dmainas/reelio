@@ -30,7 +30,7 @@ import { requestRemoteOrganize } from "@/lib/remote-organize";
 import { clearLibraryStorage, loadLibrary, saveLibrary } from "@/lib/storage";
 import { defaultSettings, type ImportedDraft, type LibraryFilter, type SavedPost, type Settings } from "@/lib/types";
 import { BookmarkIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, UploadIcon, XIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type LoadState = { status: "loading" } | { status: "error" } | { status: "ready" };
@@ -46,15 +46,19 @@ export function LibraryApp() {
   const [importOpen, setImportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const saveTimer = useRef<number | null>(null);
 
   function commit(nextPosts: SavedPost[], nextSettings: Settings = settings) {
     setPosts(nextPosts);
     setSettings(nextSettings);
-    try {
-      saveLibrary({ posts: nextPosts, settings: nextSettings });
-    } catch {
-      toast.error("Couldn’t save the shelf in this browser. Storage may be full or blocked.");
-    }
+    if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      try {
+        saveLibrary({ posts: nextPosts, settings: nextSettings });
+      } catch {
+        toast.error("Couldn’t save the shelf in this browser. Storage may be full or blocked.");
+      }
+    }, 0);
   }
 
   const visible = useMemo(() => {
@@ -62,6 +66,20 @@ export function LibraryApp() {
       .filter((post) => matchesQuery(post, query) && matchesFilter(post, filter))
       .sort((a, b) => timeValue(b.savedAt) - timeValue(a.savedAt));
   }, [posts, query, filter]);
+  const [renderLimit, setRenderLimit] = useState(24);
+  const listKey = `${visible.length}|${query}|${filter.kind}|${"name" in filter ? filter.name : ""}`;
+
+  useEffect(() => {
+    setRenderLimit(24);
+  }, [listKey]);
+
+  useEffect(() => {
+    if (renderLimit >= visible.length) return;
+    const frame = window.requestAnimationFrame(() => {
+      setRenderLimit((current) => Math.min(visible.length, current + 24));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [renderLimit, visible.length]);
 
   function updatePost(postId: string, map: (post: SavedPost) => SavedPost) {
     commit(posts.map((post) => (post.id === postId ? map(post) : post)));
@@ -84,10 +102,10 @@ export function LibraryApp() {
     }
   }
 
-  function onImport(drafts: ImportedDraft[], meta: { skipped: number; truncated: boolean }) {
+  function onImport(drafts: ImportedDraft[], meta: { skipped: number }) {
     const merged = mergeImportedPosts(posts, drafts);
     commit(merged.posts);
-    toast.success(importSummary(merged.added, merged.updated, meta.skipped, meta.truncated));
+    toast.success(importSummary(merged.added, merged.updated, meta.skipped));
   }
 
   function restoreDemo() {
@@ -224,7 +242,7 @@ export function LibraryApp() {
                 <NoMatches query={query} onClear={() => { setQuery(""); setFilter({ kind: "all" }); }} />
               ) : (
                 <div data-testid="post-grid" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {visible.map((post) => (
+                  {visible.slice(0, renderLimit).map((post) => (
                     <PostCard
                       key={post.id}
                       post={post}
@@ -330,7 +348,7 @@ function filterPhrase(filter: LibraryFilter): string {
   }
 }
 
-function importSummary(added: number, updated: number, skipped: number, truncated: boolean): string {
+function importSummary(added: number, updated: number, skipped: number): string {
   const parts: string[] = [];
   if (added > 0) parts.push(`${added} new`);
   if (updated > 0) parts.push(`${updated} updated`);
@@ -338,7 +356,6 @@ function importSummary(added: number, updated: number, skipped: number, truncate
   if (skipped > 0) {
     message += ` ${skipped} ${skipped === 1 ? "entry was" : "entries were"} skipped because there was no link.`;
   }
-  if (truncated) message += " Only the first 2,000 posts were imported.";
   return message;
 }
 

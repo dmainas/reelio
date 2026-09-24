@@ -38,7 +38,7 @@ export function PostCard({
     <article
       data-testid="post-card"
       data-post-id={post.id}
-      className="flex flex-col overflow-hidden rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10"
+      className="flex flex-col overflow-hidden rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10 [contain-intrinsic-size:auto_28rem] [content-visibility:auto]"
     >
       <div className="relative">
         <Image

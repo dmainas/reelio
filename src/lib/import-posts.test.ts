@@ -86,6 +86,17 @@ test("accepts an Instagram export larger than 5MB", () => {
   assert.equal(result.posts[0]?.url, "https://www.instagram.com/p/AbC123/");
 });
 
+test("imports every saved post instead of stopping at 2000", () => {
+  const records = Array.from({ length: 2500 }, (_, index) => ({
+    url: `https://www.instagram.com/p/post${index}/`,
+    caption: "note",
+  }));
+  const result = parseSavedExport(records);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.posts.length, 2500);
+});
+
 test("rejects invalid JSON with a clear error", () => {
   const result = parseSavedExportText("{");
   assert.equal(result.ok, false);

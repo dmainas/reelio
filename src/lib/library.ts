@@ -140,6 +140,11 @@ export function mergeImportedPosts(
   drafts: ImportedDraft[],
 ): { posts: SavedPost[]; added: number; updated: number } {
   const posts = existing.map((post) => ({ ...post, tags: [...post.tags] }));
+  const indexByUrl = new Map<string, number>();
+  for (let index = 0; index < posts.length; index += 1) {
+    const key = canonicalUrl(posts[index].url);
+    if (!indexByUrl.has(key)) indexByUrl.set(key, index);
+  }
   const seen = new Set<string>();
   let added = 0;
   let updated = 0;
@@ -148,8 +153,9 @@ export function mergeImportedPosts(
     const key = canonicalUrl(draft.url);
     if (seen.has(key)) continue;
     seen.add(key);
-    const index = posts.findIndex((post) => canonicalUrl(post.url) === key);
-    if (index === -1) {
+    const index = indexByUrl.get(key);
+    if (index === undefined) {
+      indexByUrl.set(key, posts.length);
       posts.push(draftToPost(draft));
       added += 1;
       continue;

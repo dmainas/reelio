@@ -52,7 +52,6 @@ export type ImportSuccess = {
   ok: true;
   posts: ImportedDraft[];
   skipped: number;
-  truncated: boolean;
 };
 
 export type ImportFailure = {

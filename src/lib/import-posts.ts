@@ -3,8 +3,6 @@ import { normalizeMediaType } from "@/lib/media";
 import { normalizeTag } from "@/lib/tags";
 import type { ImportResult, ImportedDraft } from "@/lib/types";
 
-const MAX_POSTS = 2000;
-
 const CAPTION_LABELS = new Set([
   "caption",
   "description",
@@ -64,13 +62,8 @@ export function parseSavedExport(input: unknown): ImportResult {
 
   const posts: ImportedDraft[] = [];
   let skipped = 0;
-  let truncated = false;
 
   for (const record of records) {
-    if (posts.length >= MAX_POSTS) {
-      truncated = true;
-      break;
-    }
     const draft = toDraft(record);
     if (!draft) {
       skipped += 1;
@@ -83,7 +76,7 @@ export function parseSavedExport(input: unknown): ImportResult {
     return { ok: false, error: NO_POSTS_ERROR };
   }
 
-  return { ok: true, posts, skipped, truncated };
+  return { ok: true, posts, skipped };
 }
 
 function collectRecords(input: unknown): unknown[] {
