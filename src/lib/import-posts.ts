@@ -4,20 +4,37 @@ import { normalizeTag } from "@/lib/tags";
 import type { ImportResult, ImportedDraft } from "@/lib/types";
 
 const MAX_POSTS = 2000;
-const MAX_TEXT_LENGTH = 5_000_000;
+
+const CAPTION_LABELS = new Set([
+  "caption",
+  "description",
+  "didascalia",
+  "legenda",
+  "leyenda",
+  "légende",
+  "legende",
+  "beschreibung",
+  "beschriftung",
+  "bijschrift",
+  "onderschrift",
+]);
+
+const USERNAME_LABELS = new Set([
+  "username",
+  "user name",
+  "nome utente",
+  "usuario",
+  "nom d'utilisateur",
+  "nom d’utilisateur",
+  "benutzername",
+  "gebruikersnaam",
+]);
 
 const NO_POSTS_ERROR =
   "No saved posts were in that file. Reelio looks for saved_saved_media, or a list of posts that include a url.";
 
 export function parseSavedExportText(text: string): ImportResult {
-  if (text.length > MAX_TEXT_LENGTH) {
-    return {
-      ok: false,
-      error: "That file is too large to import in the browser.",
-    };
-  }
-
-  const trimmed = text.trim();
+  const trimmed = text.replace(/^\uFEFF/, "").trim();
   if (!trimmed) {
     return {
       ok: false,
@@ -114,7 +131,11 @@ function toDraft(record: unknown): ImportedDraft | null {
 }
 
 function isInstagramShape(record: Record<string, unknown>): boolean {
-  return isRecord(record.string_map_data) || Array.isArray(record.string_list_data);
+  return (
+    isRecord(record.string_map_data) ||
+    Array.isArray(record.string_list_data) ||
+    Array.isArray(record.label_values)
+  );
 }
 
 function extractUrl(record: Record<string, unknown>): string | null {
@@ -126,6 +147,9 @@ function extractUrl(record: Record<string, unknown>): string | null {
 
   const listed = hrefFromList(record.string_list_data);
   if (listed) return listed;
+
+  const labeled = urlFromLabelValues(record.label_values);
+  if (labeled) return labeled;
 
   const title = typeof record.title === "string" ? record.title.trim() : "";
   if (title && isHttpUrl(title)) return title;
@@ -153,9 +177,74 @@ function hrefFromList(value: unknown): string | null {
   return null;
 }
 
+function urlFromLabelValues(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  let fallback = "";
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const href = typeof entry.href === "string" ? entry.href.trim() : "";
+    const raw = typeof entry.value === "string" ? entry.value.trim() : "";
+    const candidate = isHttpUrl(href) ? href : isHttpUrl(raw) ? raw : "";
+    if (!candidate) continue;
+    if (isPostUrl(candidate)) return candidate;
+    if (!fallback) fallback = candidate;
+  }
+  return fallback;
+}
+
+function textFromLabelValues(value: unknown, labels: Set<string>): string {
+  if (!Array.isArray(value)) return "";
+  const matched = findLabeledText(value, labels);
+  if (matched) return matched;
+
+  let longest = "";
+  for (const entry of value) {
+    if (!isRecord(entry) || entry.title !== undefined) continue;
+    const text = typeof entry.value === "string" ? entry.value.trim() : "";
+    if (!text || isHttpUrl(text)) continue;
+    if (text.length > longest.length) longest = text;
+  }
+  return longest;
+}
+
+function findLabeledText(value: unknown, labels: Set<string>): string {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = findLabeledText(entry, labels);
+      if (found) return found;
+    }
+    return "";
+  }
+  if (!isRecord(value)) return "";
+
+  const label = typeof value.label === "string" ? value.label.trim().toLowerCase() : "";
+  const text = typeof value.value === "string" ? value.value.trim() : "";
+  if (labels.has(label) && text && !isHttpUrl(text)) return text;
+
+  for (const nested of Object.values(value)) {
+    if (nested === value.label || nested === value.value) continue;
+    const found = findLabeledText(nested, labels);
+    if (found) return found;
+  }
+  return "";
+}
+
+function isPostUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const [head] = url.pathname.split("/").filter(Boolean);
+    return head === "p" || head === "reel" || head === "reels" || head === "tv";
+  } catch {
+    return false;
+  }
+}
+
 function extractCaption(record: Record<string, unknown>, instagramShape: boolean): string {
   const explicit = firstString(record, ["caption", "text", "description"]);
   if (explicit) return explicit.trim();
+
+  const labeled = textFromLabelValues(record.label_values, CAPTION_LABELS);
+  if (labeled) return labeled;
 
   const title = typeof record.title === "string" ? record.title.trim() : "";
   if (!title || isHttpUrl(title) || looksLikeHandle(title)) return "";
@@ -166,6 +255,9 @@ function extractCaption(record: Record<string, unknown>, instagramShape: boolean
 function extractAccount(record: Record<string, unknown>, instagramShape: boolean): string {
   const explicit = firstString(record, ["account", "username", "owner", "user", "handle"]);
   if (explicit) return explicit.replace(/^@/, "").trim();
+
+  const labeled = findLabeledText(record.label_values, USERNAME_LABELS);
+  if (labeled) return labeled.replace(/^@/, "");
 
   const title = typeof record.title === "string" ? record.title.trim() : "";
   if (instagramShape && looksLikeHandle(title)) return title.replace(/^@/, "");

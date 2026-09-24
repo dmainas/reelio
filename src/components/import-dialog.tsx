@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { parseSavedExportText } from "@/lib/import-posts";
+import { parseSavedExportOffThread } from "@/lib/parse-saved-export.client";
 import type { ImportedDraft } from "@/lib/types";
 import { useState } from "react";
 
@@ -23,46 +23,50 @@ type ImportDialogProps = {
 export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps) {
   const [paste, setPaste] = useState("");
   const [fileName, setFileName] = useState("");
-  const [fileText, setFileText] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
 
   function resetDraft() {
     setPaste("");
     setFileName("");
-    setFileText(null);
+    setFile(null);
     setError(null);
     setReading(false);
   }
 
-  async function onFileChange(file: File | undefined) {
+  function onFileChange(next: File | undefined) {
     setError(null);
-    if (!file) {
+    setReading(false);
+    if (!next) {
       setFileName("");
-      setFileText(null);
+      setFile(null);
       return;
     }
+    setFileName(next.name);
+    setFile(next);
+  }
+
+  async function importPayload(payload: string | ArrayBuffer) {
     setReading(true);
-    setFileName(file.name);
+    setError(null);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
     try {
-      setFileText(await file.text());
+      const result = await parseSavedExportOffThread(payload);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      onImport(result.posts, { skipped: result.skipped, truncated: result.truncated });
+      resetDraft();
+      onOpenChange(false);
     } catch {
-      setFileText(null);
       setError("Couldn’t read that file. Try again, or paste the JSON below.");
     } finally {
       setReading(false);
     }
-  }
-
-  function importText(text: string) {
-    const result = parseSavedExportText(text);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    onImport(result.posts, { skipped: result.skipped, truncated: result.truncated });
-    resetDraft();
-    onOpenChange(false);
   }
 
   async function importSample() {
@@ -74,7 +78,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
         setError("The sample export couldn’t be loaded.");
         return;
       }
-      importText(await response.text());
+      await importPayload(await response.text());
     } catch {
       setError("The sample export couldn’t be loaded.");
     } finally {
@@ -90,31 +94,36 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent
+        data-testid="import-dialog"
+        className="flex max-h-[calc(100dvh-2rem)] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+      >
+        <DialogHeader className="shrink-0 px-4 pt-4 pr-12">
           <DialogTitle>Import saved posts</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-pretty">
             Instagram’s download includes{" "}
-            <span className="font-mono text-xs">your_instagram_activity/saved/saved_posts.json</span>.
+            <span className="font-mono text-xs break-all">your_instagram_activity/saved/saved_posts.json</span>.
             Those entries are often just a link and the time you saved them. A richer JSON file with
             captions, accounts, and media type works too.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+        <div className="flex min-h-0 min-w-0 flex-auto flex-col gap-3 overflow-y-auto px-4 py-3">
+          <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
             JSON file
             <input
               data-testid="import-file"
               type="file"
               accept="application/json,.json"
-              className="block w-full text-sm font-normal text-muted-foreground file:mr-3 file:rounded-lg file:border file:border-border file:bg-secondary file:px-2.5 file:py-1 file:text-sm file:font-medium file:text-foreground"
+              className="block w-full max-w-full min-w-0 text-sm font-normal text-muted-foreground file:mr-3 file:rounded-lg file:border file:border-border file:bg-secondary file:px-2.5 file:py-1 file:text-sm file:font-medium file:text-foreground"
               onChange={(event) => {
-                void onFileChange(event.target.files?.[0]);
+                onFileChange(event.target.files?.[0]);
               }}
             />
           </label>
-          {fileName ? <p className="text-xs text-muted-foreground">Selected {fileName}</p> : null}
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+          {fileName ? (
+            <p className="text-xs break-all text-muted-foreground">Selected {fileName}</p>
+          ) : null}
+          <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
             Or paste JSON
             <Textarea
               data-testid="import-paste"
@@ -124,19 +133,19 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
                 if (error) setError(null);
               }}
               placeholder='{"saved_saved_media":[{"string_map_data":{"Saved on":{"href":"https://www.instagram.com/p/…","timestamp":1714521600}}}]}'
-              className="min-h-28 font-mono text-xs"
+              className="field-sizing-fixed max-h-36 min-h-28 w-full min-w-0 font-mono text-xs break-all"
             />
           </label>
           {error ? (
             <div
               role="alert"
               data-testid="import-error"
-              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive"
             >
               {error}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-pretty text-muted-foreground">
               Nothing is uploaded. Parsing happens in this browser.{" "}
               <a className="underline underline-offset-2" href="/examples/rich-saved-posts.json" download>
                 Download a richer example
@@ -145,24 +154,47 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
             </p>
           )}
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={reading} onClick={() => void importSample()}>
+        {reading ? (
+          <p data-testid="import-status" className="shrink-0 px-4 pb-2 text-sm text-muted-foreground">
+            Parsing this export…
+          </p>
+        ) : null}
+        <DialogFooter className="mx-0 mb-0 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            className="max-w-full whitespace-normal"
+            disabled={reading}
+            onClick={() => void importSample()}
+          >
             Import sample export
           </Button>
           <Button
             type="button"
+            className="max-w-full whitespace-normal"
             data-testid="import-submit"
             disabled={reading}
             onClick={() => {
-              const text = fileText ?? paste;
-              if (!text.trim()) {
-                setError("Choose a JSON file or paste the export.");
-                return;
-              }
-              importText(text);
+              void (async () => {
+                if (file) {
+                  setReading(true);
+                  try {
+                    await importPayload(await file.arrayBuffer());
+                  } catch {
+                    setError("Couldn’t read that file. Try again, or paste the JSON below.");
+                    setReading(false);
+                  }
+                  return;
+                }
+                if (!paste.trim()) {
+                  setError("Choose a JSON file or paste the export.");
+                  return;
+                }
+                await importPayload(paste);
+              })();
             }}
           >
-            {reading ? "Reading…" : "Import posts"}
+            {reading ? "Importing…" : "Import posts"}
           </Button>
         </DialogFooter>
       </DialogContent>
